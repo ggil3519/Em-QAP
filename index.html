@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Em QAP - Rádio e Mapa Motoboy</title>
-  <link rel="stylesheet" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://cloudflare.com" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
     body { background: #111827; color: #fff; width: 100%; height: 100vh; overflow: hidden; }
@@ -27,7 +27,7 @@
     .btn-topo.ativo { background: #059669; color: #fff; border-color: #34d399; }
     
     #barra-status { background: #064e3b; color: #6ee7b7; font-size: 11px; padding: 5px 12px; display: flex; justify-content: space-between; font-weight: bold; }
-    #map { flex: 1; width: 100%; min-height: 180px; background: #1e293b; z-index: 1; }
+    #map { flex: 1; width: 100%; min-height: 220px; background: #1e293b; z-index: 1; }
     
     .alertas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; background: #1f2937; }
     .btn-alerta { border: none; border-radius: 8px; padding: 10px 4px; font-weight: bold; font-size: 11px; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -81,7 +81,7 @@
     </header>
 
     <div id="barra-status">
-      <span id="status-rede">Conectando rádio...</span>
+      <span id="status-rede">Iniciando...</span>
       <span id="qtd-online">● 1 online</span>
     </div>
 
@@ -102,7 +102,7 @@
 
   <audio id="player-radio" playsinline></audio>
 
-  <script src="https://unpkg.com"></script>
+  <script src="https://cloudflare.com"></script>
   <script src="https://jsdelivr.net"></script>
   <script>
     var meuNome = 'Motoboy-' + Math.floor(100 + Math.random() * 900);
@@ -128,21 +128,31 @@
       if (player) player.play().catch(function() {});
 
       setTimeout(function() {
-        if (!map && typeof L !== 'undefined') {
-          map = L.map('map').setView(minhaPos, 15);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-          }).addTo(map);
-          meuMarcador = L.marker(minhaPos).addTo(map).bindPopup('<b>Você (' + meuNome + ')</b>').openPopup();
-          setTimeout(function() { map.invalidateSize(); }, 300);
-        }
+        try {
+          if (!map && typeof L !== 'undefined') {
+            map = L.map('map').setView(minhaPos, 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '© OpenStreetMap'
+            }).addTo(map);
+            meuMarcador = L.marker(minhaPos).addTo(map).bindPopup('<b>Você (' + meuNome + ')</b>').openPopup();
+            setTimeout(function() { map.invalidateSize(); }, 400);
+          } else if (typeof L === 'undefined') {
+            document.getElementById('map').innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af;">Mapa em modo leve (Rádio Ativo)</div>';
+          }
+        } catch (err) {}
 
-        if (!supa && typeof supabase !== 'undefined') {
-          supa = supabase.createClient(
-            'https://supabase.co',
-            'sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi'
-          );
-          conectarCanal('paulista-janga');
+        try {
+          if (!supa && typeof supabase !== 'undefined') {
+            supa = supabase.createClient(
+              'https://supabase.co',
+              'sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi'
+            );
+            conectarCanal('paulista-janga');
+          } else {
+            document.getElementById('status-rede').innerText = '⚠️ Sem conexão com servidor';
+          }
+        } catch (err) {
+          document.getElementById('status-rede').innerText = 'Erro: ' + err.message;
         }
 
         if (navigator.geolocation) {
@@ -154,12 +164,12 @@
               canal.send({
                 type: 'broadcast',
                 event: 'gps',
-                payload: { autor: meuNome, lat: minhaPos, lng: minhaPos }
+                payload: { autor: meuNome, lat: minhaPos[0], lng: minhaPos[1] }
               });
             }
           });
         }
-      }, 150);
+      }, 200);
     }
 
     function conectarCanal(regiao) {
@@ -184,17 +194,3 @@
         var p = msg.payload;
         document.getElementById('log-voz').innerText = '🔊 OUVINDO: ' + p.autor;
         var player = document.getElementById('player-radio');
-        player.src = p.audioBase64;
-        player.play().catch(function() {});
-        player.onended = function() {
-          document.getElementById('log-voz').innerText = 'Frequência livre - Pode falar';
-        };
-      });
-
-      canal.on('broadcast', { event: 'alerta' }, function(msg) {
-        var p = msg.payload;
-        if (map && typeof L !== 'undefined') {
-          L.marker([p.lat, p.lng]).addTo(map).bindPopup('<b>' + p.tipo + '</b><br>Por: ' + p.autor).openPopup();
-        }
-        document.getElementById('log-voz').innerText = '🚨 ALERTA: ' + p.tipo;
-        try {
