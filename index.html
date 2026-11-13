@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>Em QAP - Rádio e Mapa Motoboy</title>
   <link rel="stylesheet" href="https://unpkg.com" />
   <style>
@@ -16,7 +15,7 @@
     .card-plano { background: #1f2937; border: 2px solid #f59e0b; border-radius: 16px; padding: 20px; width: 100%; max-width: 340px; }
     .preco { font-size: 28px; font-weight: bold; color: #10b981; margin: 8px 0; }
     input.campo { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #4b5563; background: #111827; color: #fff; font-size: 16px; margin-bottom: 12px; }
-    .btn-entrar { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #f59e0b; color: #111827; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+    .btn-entrar { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #f59e0b; color: #111827; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; -webkit-appearance: none; }
     .btn-pix { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #10b981; background: transparent; color: #10b981; font-size: 14px; font-weight: bold; cursor: pointer; }
 
     #app-container { display: none; flex-direction: column; width: 100%; height: 100vh; }
@@ -54,8 +53,14 @@
       <div style="font-size: 12px; color: #d1d5db; margin-bottom: 14px;">✔ Rádio ao vivo sem digitar<br>✔ Alertas de Blitz, Perigo e SOS no fone<br>✔ Mapa com colegas na região</div>
       
       <input type="text" id="input-nome" class="campo" placeholder="Seu nome ou QRA (Ex: Gil - Paulista)" />
-      <button type="button" class="btn-entrar" onclick="abrirFrequencia()">ENTRAR NA FREQUÊNCIA (TESTE GRÁTIS)</button>
-      <button type="button" class="btn-pix" onclick="copiarPix()">💠 PAGAR R$ 25 VIA PIX (COPIAR CHAVE)</button>
+      
+      <button type="button" class="btn-entrar" onclick="document.getElementById('tela-login').style.display='none'; document.getElementById('app-container').style.display='flex'; setTimeout(iniciarSistema, 100);">
+        ENTRAR NA FREQUÊNCIA (TESTE GRÁTIS)
+      </button>
+      
+      <button type="button" class="btn-pix" onclick="alert('Chave Pix para assinatura (R$ 25,00): SUA_CHAVE_PIX_AQUI@email.com')">
+        💠 PAGAR R$ 25 VIA PIX (COPIAR CHAVE)
+      </button>
     </div>
   </div>
 
@@ -99,21 +104,6 @@
     var supabaseClient = null;
     var canal = null;
 
-    function copiarPix() {
-      alert("Chave Pix para assinatura (R$ 25,00): SUA_CHAVE_PIX_AQUI@email.com");
-    }
-
-    function abrirFrequencia() {
-      var campo = document.getElementById('input-nome');
-      if (campo && campo.value.trim() !== '') {
-        meuNome = campo.value.trim();
-      }
-      document.getElementById('tela-login').style.display = 'none';
-      document.getElementById('app-container').style.display = 'flex';
-      
-      iniciarSistema();
-    }
-
     function falarAviso(texto) {
       try {
         if ('speechSynthesis' in window) {
@@ -125,6 +115,11 @@
     }
 
     function iniciarSistema() {
+      var campo = document.getElementById('input-nome');
+      if (campo && campo.value.trim() !== '') {
+        meuNome = campo.value.trim();
+      }
+
       try {
         if (!map && typeof L !== 'undefined') {
           map = L.map('map').setView(minhaPos, 15);
@@ -132,7 +127,7 @@
             attribution: '© OpenStreetMap'
           }).addTo(map);
           meuMarcador = L.marker(minhaPos).addTo(map).bindPopup('<b>Você (' + meuNome + ')</b>').openPopup();
-          setTimeout(function() { map.invalidateSize(); }, 400);
+          setTimeout(function() { map.invalidateSize(); }, 300);
         }
       } catch (e) {}
 
@@ -204,3 +199,7 @@
     function mudarRegiao() {
       var reg = document.getElementById('canal-regiao').value;
       conectarCanal(reg);
+      document.getElementById('log-voz').innerText = 'Canal: ' + reg.toUpperCase();
+    }
+
+    function mandarAlerta(tipo) {
