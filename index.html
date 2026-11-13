@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Em QAP - Rádio e Mapa Motoboy</title>
+  <link rel="stylesheet" href="https://unpkg.com" />
+  <script src="https://unpkg.com"></script>
+  <script src="https://jsdelivr.net"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    body { background: #111827; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    header { background: #1f2937; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f59e0b; }
+    header h1 { font-size: 20px; color: #f59e0b; letter-spacing: 1px; }
+    #status { font-size: 12px; background: #065f46; color: #6ee7b7; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
+    #map { flex: 1; width: 100%; z-index: 1; }
+    .alertas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; background: #1f2937; }
+    .btn-alerta { border: none; border-radius: 8px; padding: 10px 4px; font-weight: bold; font-size: 12px; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .blitz { background: #2563eb; }
+    .acidente { background: #d97706; }
+    .perigo { background: #7c3aed; }
+    .sos { background: #dc2626; animation: pulse 2s infinite; }
+    .radio-area { background: #111827; padding: 12px; border-top: 1px solid #374151; display: flex; flex-direction: column; gap: 8px; }
+    #ptt-btn { width: 100%; height: 85px; border-radius: 16px; border: 3px solid #f59e0b; background: #1f2937; color: #f59e0b; font-size: 20px; font-weight: bold; cursor: pointer; user-select: none; touch-action: none; transition: 0.1s; }
+    #ptt-btn.falando { background: #dc2626; border-color: #fca5a5; color: #fff; transform: scale(0.98); }
+    #log-voz { text-align: center; font-size: 13px; color: #9ca3af; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🏍️ EM QAP</h1>
+    <span id="status">● FREQUÊNCIA ATIVA</span>
+  </header>
+
+  <div id="map"></div>
+
+  <div class="alertas">
+    <button class="btn-alerta blitz" onclick="enviarAlerta('🚓 BLITZ NA VIA')">🚓<span>BLITZ</span></button>
+    <button class="btn-alerta acidente" onclick="enviarAlerta('⚠️ ACIDENTE')">⚠️<span>ACIDENTE</span></button>
+    <button class="btn-alerta perigo" onclick="enviarAlerta('🚨 ÁREA DE RISCO')">🚨<span>PERIGO</span></button>
+    <button class="btn-alerta sos" onclick="enviarAlerta('🆘 PEDIDO DE SOS')">🆘<span>SOS</span></button>
+  </div>
+
+  <div class="radio-area">
+    <div id="log-voz">Segure o botão abaixo para falar no fone da galera</div>
+    <button id="ptt-btn">🎙️ SEGURE PARA FALAR (QAP)</button>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const meuNome = 'Motoboy-' + Math.floor(100 + Math.random() * 900);
+    let minhaPos = [-7.9408, -34.8731];
+
+    const map = L.map('map').setView(minhaPos, 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    const meuMarcador = L.marker(minhaPos).addTo(map).bindPopup(`<b>Você (${meuNome})</b>`).openPopup();
+    const outrosMarcadores = {};
+
+    const canal = supabase.channel('frequencia-geral', {
+      config: { broadcast: { self: false } }
+    });
+
+    canal.on('broadcast', { event: 'voz' }, ({ payload }) => {
+      document.getElementById('log-voz').innerText = `🔊 ${payload.autor} falando agora...`;
+      const audio = new Audio(payload.audioBase64);
+      audio.play().catch(e => console.log('Toque na tela para liberar áudio'));
+      audio.onended = () => {
+        document.getElementById('log-voz').innerText = 'Frequência livre - Segure para falar';
+      };
+    });
+
+    canal.on('broadcast', { event: 'alerta' }, ({ payload }) => {
+      L.marker([payload.lat, payload.lng]).addTo(map)
+        .bindPopup(`<b>${payload.tipo}</b><br>Por: ${payload.autor}`).openPopup();
+      
+      const fala = new SpeechSynthesisUtterance(`Atenção QAP! ${payload.tipo} reportado na região.`);
+      fala.lang = 'pt-BR';
+      window.speechSynthesis.speak(fala);
+    });
+
+    canal.on('broadcast', { event: 'gps' }, ({ payload }) => {
+      if (!outrosMarcadores[payload.autor]) {
+        outrosMarcadores[payload.autor] = L.marker([payload.lat, payload.lng]).addTo(map).bindPopup(`🏍️ ${payload.autor}`);
+      } else {
+        outrosMarcadores[payload.autor].setLatLng([payload.lat, payload.lng]);
+      }
+    });
+
+    canal.subscribe();
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.watchPosition((pos) => {
+        minhaPos = [pos.coords.latitude, pos.coords.longitude];
+        meuMarcador.setLatLng(minhaPos);
+        map.setView(minhaPos);
+        canal.send({
+          type: 'broadcast',
+          event: 'gps',
+          payload: { autor: meuNome, lat: minhaPos, lng: minhaPos }
+        });
+      }, null, { enableHighAccuracy: true });
+    }
+
+    function enviarAlerta(tipo) {
+      L.marker(minhaPos).addTo(map).bindPopup(`<b>${tipo}</b> (Você)`).openPopup();
+      canal.send({
+        type: 'broadcast',
+        event: 'alerta',
+        payload: { autor: meuNome, tipo: tipo, lat: minhaPos, lng: minhaPos }
+      });
+      alert(`Alerta enviado para toda a rede: ${tipo}`);
+    }
+
+    const pttBtn = document.getElementById('ptt-btn');
+    let mediaRecorder;
+    let audioChunks = [];
+
+    async function iniciarGravacao(e) {
+      e.preventDefault();
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            canal.send({
+              type: 'broadcast',
+              event: 'voz',
+              payload: { autor: meuNome, audioBase64: reader.result }
+            });
+          };
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        pttBtn.classList.add('falando');
+        pttBtn.innerText = '🔴 TRANSMITINDO VOZ...';
+        document.getElementById('log-voz').innerText = 'Falando na frequência...';
+      } catch (err) {
+        alert('Permita o uso do microfone no navegador para falar!');
+      }
+    }
+
+    function pararGravacao(e) {
+      e.preventDefault();
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        pttBtn.classList.remove('falando');
+        pttBtn.innerText = '🎙️ SEGURE PARA FALAR (QAP)';
+        document.getElementById('log-voz').innerText = 'Áudio enviado!';
+      }
+    }
+
+    pttBtn.addEventListener('mousedown', iniciarGravacao);
+    pttBtn.addEventListener('mouseup', pararGravacao);
+    pttBtn.addEventListener('touchstart', iniciarGravacao);
+    pttBtn.addEventListener('touchend', pararGravacao);
+  </script>
+</body>
+</html>
