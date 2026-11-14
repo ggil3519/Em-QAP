@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Em QAP</title>
-  <script src="https://cloudflare.com"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
     html, body { background: #111827; color: #fff; width: 100%; height: 100%; overflow: hidden; }
@@ -82,12 +81,29 @@
     var nome = "";
     var lat = -7.945;
     var lng = -34.880;
-    var client = null;
+    var ws = null;
+    var pingTm = null;
     var eco = false;
     var auto = false;
     var rec = null;
     var chunks = [];
     var strm = null;
+
+    function encLen(len) {
+      var out = [];
+      do {
+        var b = len % 128;
+        len = Math.floor(len / 128);
+        if (len > 0) b |= 128;
+        out.push(b);
+      } while (len > 0);
+      return out;
+    }
+
+    function strBytes(s) {
+      var u = new TextEncoder().encode(s);
+      return [u.length >> 8, u.length & 255].concat(Array.from(u));
+    }
 
     function iniciarRadio() {
       nome = document.getElementById("nome").value.trim();
@@ -105,149 +121,78 @@
     }
 
     function conectarRadio() {
-      if (typeof Paho === "undefined") {
-        document.getElementById("st").innerText = "Erro ao carregar modulo";
-        return;
-      }
-      if (client && client.isConnected()) {
-        try { client.disconnect(); } catch(e){}
-      }
+      if (ws) { try { ws.close(); } catch(e){} }
+      clearInterval(pingTm);
       document.getElementById("st").innerText = "Conectando frequencia...";
-      var clientId = "emqap_" + Math.floor(Math.random() * 100000);
-      client = new Paho.MQTT.Client("broker.emqx.io", 8084, "/mqtt", clientId);
+      ws = new WebSocket("wss://broker.emqx.io:8084/mqtt", ["mqtt"]);
+      ws.binaryType = "arraybuffer";
 
-      client.onConnectionLost = function() {
-        document.getElementById("st").innerText = "Reconectando...";
-        setTimeout(conectarRadio, 3000);
+      ws.onopen = function() {
+        var cid = "emqap_" + Math.floor(Math.random() * 999999);
+        var vh =;
+        var pl = strBytes(cid);
+        var pkt = [0x10].concat(encLen(vh.length + pl.length), vh, pl);
+        ws.send(new Uint8Array(pkt));
+
+        var topico = "emqap/pe/canal/" + document.getElementById("reg").value;
+        var subPl = [0, 1].concat(strBytes(topico), [0]);
+        var subPkt = [0x82].concat(encLen(subPl.length), subPl);
+        ws.send(new Uint8Array(subPkt));
+
+        document.getElementById("st").innerText = "RADIO CONECTADO AO VIVO";
+        pingTm = setInterval(function() {
+          if (ws.readyState === 1) ws.send(new Uint8Array([0xC0, 0x00]));
+        }, 25000);
       };
 
-      client.onMessageArrived = function(message) {
-        try {
-          var d = JSON.parse(message.payloadString);
-          if (d.n === nome && !eco) return;
-          if (d.tipo === "voz") {
-            document.getElementById("log").innerText = "OUVINDO: " + d.n;
-            mostrarTag("Audio de " + d.n);
-            var a = document.getElementById("aud");
-            a.src = d.b;
-            a.play().catch(function(){});
-            a.onended = function() { document.getElementById("log").innerText = "Frequencia livre"; };
-          }
-          if (d.tipo === "alerta") {
-            mostrarTag(d.t + " - por " + d.n, d.la, d.ln);
-            document.getElementById("log").innerText = d.t + " (" + d.n + ")";
-            try {
-              var f = new SpeechSynthesisUtterance("Atencao QAP! " + d.n + " informou: " + d.t);
-              f.lang = "pt-BR";
-              speechSynthesis.speak(f);
-            } catch(e){}
-          }
-        } catch(e){}
-      };
-
-      client.connect({
-        useSSL: true,
-        onSuccess: function() {
-          var topico = "emqap/pe/canal/" + document.getElementById("reg").value;
-          client.subscribe(topico);
-          document.getElementById("st").innerText = "RADIO CONECTADO AO VIVO";
-        },
-        onFailure: function() {
-          document.getElementById("st").innerText = "Falha na conexao";
+      ws.onmessage = function(ev) {
+        var buf = new Uint8Array(ev.data);
+        if ((buf[0] & 0xF0) === 0x30) {
+          var idx = 1;
+          while (buf[idx] & 128) idx++;
+          idx++;
+          var tLen = (buf[idx] << 8) + buf[idx + 1];
+          idx += 2 + tLen;
+          if (buf[0] & 0x06) idx += 2;
+          var txt = new TextDecoder().decode(buf.slice(idx));
+          try {
+            var d = JSON.parse(txt);
+            if (d.n === nome && !eco) return;
+            if (d.tipo === "voz") {
+              document.getElementById("log").innerText = "OUVINDO: " + d.n;
+              mostrarTag("Audio de " + d.n);
+              var a = document.getElementById("aud");
+              a.src = d.b;
+              a.play().catch(function(){});
+              a.onended = function() { document.getElementById("log").innerText = "Frequencia livre"; };
+            }
+            if (d.tipo === "alerta") {
+              mostrarTag(d.t + " - por " + d.n, d.la, d.ln);
+              document.getElementById("log").innerText = d.t + " (" + d.n + ")";
+              try {
+                var f = new SpeechSynthesisUtterance("Atencao QAP! " + d.n + " informou: " + d.t);
+                f.lang = "pt-BR";
+                speechSynthesis.speak(f);
+              } catch(e){}
+            }
+          } catch(e){}
         }
-      });
+      };
+
+      ws.onerror = function() {
+        document.getElementById("st").innerText = "Erro de conexao";
+      };
     }
 
     function enviarMsg(obj) {
-      if (!client || !client.isConnected()) return;
+      if (!ws || ws.readyState !== 1) return;
       var topico = "emqap/pe/canal/" + document.getElementById("reg").value;
-      var msg = new Paho.MQTT.Message(JSON.stringify(obj));
-      msg.destinationName = topico;
-      client.send(msg);
+      var payload = new TextEncoder().encode(JSON.stringify(obj));
+      var tBytes = strBytes(topico);
+      var pkt = [0x30].concat(encLen(tBytes.length + payload.length), tBytes, Array.from(payload));
+      ws.send(new Uint8Array(pkt));
     }
 
     function mandarAlerta(t) {
       mostrarTag(t + " - por Voce", lat, lng);
       enviarMsg({ tipo: "alerta", n: nome, t: t, la: lat, ln: lng });
-      document.getElementById("log").innerText = "Enviado: " + t;
-    }
-
-    function mostrarTag(texto, la, ln) {
-      var feed = document.getElementById("feed-alertas");
-      var div = document.createElement("div");
-      div.className = "tag-alerta";
-      var link = (la && ln) ? "<a href='https://google.com" + la + "," + ln + "' target='_blank'>VER NO MAPA</a>" : "";
-      div.innerHTML = "<span>" + texto + "</span>" + link;
-      feed.prepend(div);
-      if (feed.children.length > 6) feed.removeChild(feed.lastChild);
-    }
-
-        function startRec(e) {
-      if (e) e.preventDefault();
-      if (rec && rec.state === "recording") return;
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
-        if (auto) strm = s;
-        rec = new MediaRecorder(s);
-        chunks = [];
-        rec.ondataavailable = function(ev) { if (ev.data.size > 0) chunks.push(ev.data); };
-        rec.onstop = function() {
-          var rd = new FileReader();
-          rd.readAsDataURL(new Blob(chunks, { type: rec.mimeType || "audio/webm" }));
-          rd.onloadend = function() { enviarMsg({ tipo: "voz", n: nome, b: rd.result }); };
-          if (!auto) s.getTracks().forEach(function(t){ t.stop(); });
-        };
-        rec.start();
-        document.getElementById("ptt").classList.add("rec");
-        document.getElementById("log").innerText = "TRANSMITINDO VOZ...";
-      }).catch(function(){ alert("Libere o microfone no navegador!"); });
-    }
-
-    function stopRec(e) {
-      if (e) e.preventDefault();
-      if (rec && rec.state === "recording") {
-        rec.stop();
-        document.getElementById("ptt").classList.remove("rec");
-        document.getElementById("log").innerText = "Audio enviado!";
-      }
-    }
-
-    function ligarAuto() {
-      auto = !auto;
-      var b = document.getElementById("bauto");
-      b.innerText = auto ? "AUTO: ON" : "AUTO: OFF";
-      b.classList.toggle("on", auto);
-      if (auto) {
-        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
-          strm = s;
-          var ctx = new (window.AudioContext || window.webkitAudioContext)();
-          var an = ctx.createAnalyser();
-          an.fftSize = 512;
-          ctx.createMediaStreamSource(s).connect(an);
-          var arr = new Uint8Array(an.frequencyBinCount);
-          var tm = null;
-          function loop() {
-            if (!auto) return;
-            an.getByteFrequencyData(arr);
-            var soma = 0;
-            for (var k = 0; k < arr.length; k++) soma += arr[k];
-            if ((soma / arr.length) > 25) {
-              if (!rec || rec.state !== "recording") startRec();
-              clearTimeout(tm);
-              tm = setTimeout(stopRec, 1200);
-            }
-            requestAnimationFrame(loop);
-          }
-          loop();
-        }).catch(function(){
-          auto = false;
-          b.innerText = "AUTO: OFF";
-          b.classList.remove("on");
-          alert("Libere o microfone!");
-        });
-      } else if (strm) {
-        strm.getTracks().forEach(function(t){ t.stop(); });
-      }
-    }
-  </script>
-</body>
-</html>
