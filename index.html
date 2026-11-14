@@ -4,26 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Em QAP</title>
-  <link rel="stylesheet" href="https://unpkg.com" />
-  <script src="https://unpkg.com"></script>
-  <script src="https://jsdelivr.net"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-    body { background: #111827; color: #fff; height: 100vh; overflow: hidden; }
+    html, body { background: #111827; color: #fff; width: 100%; height: 100%; overflow: hidden; }
     #login { position: fixed; inset: 0; background: #111827; z-index: 99; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
     .box { background: #1f2937; border: 2px solid #f59e0b; border-radius: 16px; padding: 20px; width: 100%; max-width: 330px; }
     input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #4b5563; background: #111827; color: #fff; font-size: 16px; margin: 12px 0; }
     .btn { width: 100%; padding: 15px; border-radius: 10px; border: none; background: #f59e0b; color: #111827; font-size: 16px; font-weight: bold; cursor: pointer; }
-    #app { display: none; flex-direction: column; height: 100vh; }
+    #app { display: none; flex-direction: column; width: 100%; height: 100%; }
     header { background: #1f2937; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f59e0b; }
-    select, .btop { background: #111827; color: #fff; border: 1px solid #4b5563; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: bold; }
+    select, .btop { background: #111827; color: #fff; border: 1px solid #4b5563; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; }
     .on { background: #059669 !important; border-color: #34d399 !important; }
-    #bar { background: #064e3b; color: #6ee7b7; font-size: 11px; padding: 4px 12px; display: flex; justify-content: space-between; font-weight: bold; }
-    #map { flex: 1; width: 100%; background: #1e293b; }
+    #bar { background: #064e3b; color: #6ee7b7; font-size: 11px; padding: 5px 12px; display: flex; justify-content: space-between; font-weight: bold; }
+    #map-area { flex: 1; width: 100%; background: #1e293b; position: relative; overflow: hidden; }
+    #map-frame { width: 100%; height: 100%; border: none; }
+    #feed-alertas { position: absolute; top: 8px; left: 8px; right: 8px; pointer-events: none; display: flex; flex-direction: column; gap: 4px; }
+    .tag-alerta { background: rgba(17, 24, 39, 0.92); border-left: 4px solid #f59e0b; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 6px; background: #1f2937; }
-    .al { border: none; border-radius: 8px; padding: 10px 2px; font-weight: bold; font-size: 11px; color: #fff; }
+    .al { border: none; border-radius: 8px; padding: 10px 2px; font-weight: bold; font-size: 11px; color: #fff; cursor: pointer; }
     .radio { background: #111827; padding: 10px 12px 18px; border-top: 1px solid #374151; }
-    #ptt { width: 100%; height: 80px; border-radius: 14px; border: 3px solid #f59e0b; background: #1f2937; color: #f59e0b; font-size: 18px; font-weight: bold; user-select: none; touch-action: none; }
+    #ptt { width: 100%; height: 80px; border-radius: 14px; border: 3px solid #f59e0b; background: #1f2937; color: #f59e0b; font-size: 18px; font-weight: bold; user-select: none; -webkit-user-select: none; touch-action: none; cursor: pointer; }
     #ptt.rec { background: #dc2626; color: #fff; border-color: #fca5a5; }
     #log { text-align: center; font-size: 12px; color: #fbbf24; margin-bottom: 6px; font-weight: bold; }
   </style>
@@ -44,22 +44,25 @@
     <header>
       <b style="color:#f59e0b;">🏍️ EM QAP</b>
       <div>
-        <select id="reg" onchange="conectar()">
+        <select id="reg" onchange="conectarWS()">
           <option value="paulista">📍 Paulista/Janga</option>
           <option value="olinda">📍 Olinda</option>
           <option value="recife">📍 Recife</option>
         </select>
-        <button id="beco" class="btop" onclick="eco=!eco;this.classList.toggle('on');conectar()">ECO</button>
+        <button id="beco" class="btop" onclick="eco=!eco;this.classList.toggle('on')">ECO</button>
         <button id="bauto" class="btop" onclick="toggleAuto()">AUTO: OFF</button>
       </div>
     </header>
-    <div id="bar"><span id="st">Iniciando...</span><span id="on">● 1 online</span></div>
-    <div id="map"></div>
+    <div id="bar"><span id="st">Conectando...</span><span id="gps-txt">📍 Janga / Paulista</span></div>
+    <div id="map-area">
+      <iframe id="map-frame" src="https://openstreetmap.org"></iframe>
+      <div id="feed-alertas"></div>
+    </div>
     <div class="grid">
-      <button class="al" style="background:#2563eb" onclick="alerta('BLITZ')">🚓 BLITZ</button>
-      <button class="al" style="background:#d97706" onclick="alerta('ACIDENTE')">⚠️ ACIDENTE</button>
-      <button class="al" style="background:#7c3aed" onclick="alerta('PERIGO')">🚨 PERIGO</button>
-      <button class="al" style="background:#dc2626" onclick="alerta('SOS')">🆘 SOS</button>
+      <button class="al" style="background:#2563eb" onclick="alerta('🚓 BLITZ NA VIA')">🚓 BLITZ</button>
+      <button class="al" style="background:#d97706" onclick="alerta('⚠️ ACIDENTE')">⚠️ ACIDENTE</button>
+      <button class="al" style="background:#7c3aed" onclick="alerta('🚨 ÁREA DE RISCO')">🚨 PERIGO</button>
+      <button class="al" style="background:#dc2626" onclick="alerta('🆘 PEDIDO DE SOS')">🆘 SOS</button>
     </div>
     <div class="radio">
       <div id="log">Segure o botão ou ligue o AUTO</div>
@@ -70,7 +73,9 @@
   <audio id="aud" playsinline></audio>
 
   <script>
-    var nome = '', pos = [-7.9408, -34.8731], map, pin, supa, ch, eco = false, auto = false, rec, chunks = [], strm;
+    var URL_SUPA = 'wdezbueowxzrtxdzxrph.supabase.co';
+    var KEY_SUPA = 'sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi';
+    var nome = '', lat = -7.945, lng = -34.880, ws, pingTm, eco = false, auto = false, rec, chunks = [], strm, ref = 1;
 
     function entrar() {
       nome = document.getElementById('nome').value.trim();
@@ -79,64 +84,86 @@
       document.getElementById('app').style.display = 'flex';
       document.getElementById('aud').play().catch(function(){});
 
-      if (typeof L !== 'undefined') {
-        map = L.map('map').setView(pos, 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        pin = L.marker(pos).addTo(map).bindPopup(nome).openPopup();
-        setTimeout(function(){ map.invalidateSize(); }, 300);
-      } else {
-        document.getElementById('st').innerText = 'Erro Mapa';
-      }
-
-      if (typeof supabase !== 'undefined') {
-        supa = supabase.createClient('https://supabase.co', 'sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi');
-        conectar();
-      } else {
-        document.getElementById('st').innerText = 'Erro Servidor';
-      }
+      conectarWS();
 
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(function(p) {
-          pos = [p.coords.latitude, p.coords.longitude];
-          if (pin) pin.setLatLng(pos);
-          if (map) map.setView(pos);
+          lat = p.coords.latitude;
+          lng = p.coords.longitude;
+          document.getElementById('gps-txt').innerText = '📍 GPS Ativo';
+          var bbox = (lng-0.015) + '%2C' + (lat-0.015) + '%2C' + (lng+0.015) + '%2C' + (lat+0.015);
+          document.getElementById('map-frame').src = 'https://openstreetmap.org' + bbox + '&layer=mapnik&marker=' + lat + '%2C' + lng;
         });
       }
     }
 
-    function conectar() {
-      if (!supa) return;
-      if (ch) supa.removeChannel(ch);
-      var r = document.getElementById('reg').value;
-      ch = supa.channel('qap-' + r, { config: { broadcast: { self: eco }, presence: { key: nome } } });
+    function mostrarTag(texto) {
+      var feed = document.getElementById('feed-alertas');
+      var div = document.createElement('div');
+      div.className = 'tag-alerta';
+      div.innerText = texto;
+      feed.prepend(div);
+      if (feed.children.length > 3) feed.removeChild(feed.lastChild);
+    }
 
-      ch.on('presence', { event: 'sync' }, function() {
-        document.getElementById('on').innerText = '● ' + Object.keys(ch.presenceState()).length + ' online';
-      });
+    function conectarWS() {
+      if (ws) { try { ws.close(); } catch(e){} }
+      clearInterval(pingTm);
+      document.getElementById('st').innerText = 'Conectando rádio...';
+      var canal = 'realtime:qap-' + document.getElementById('reg').value;
+      ws = new WebSocket('wss://' + URL_SUPA + '/realtime/v1/websocket?apikey=' + KEY_SUPA + '&vsn=1.0.0');
 
-      ch.on('broadcast', { event: 'voz' }, function(m) {
-        document.getElementById('log').innerText = '🔊 ' + m.payload.n + ' falando...';
-        var a = document.getElementById('aud');
-        a.src = m.payload.b;
-        a.play().catch(function(){});
-        a.onended = function() { document.getElementById('log').innerText = 'Frequência livre'; };
-      });
+      ws.onopen = function() {
+        ws.send(JSON.stringify({
+          topic: canal,
+          event: 'phx_join',
+          payload: { config: { broadcast: { self: true } } },
+          ref: String(ref++)
+        }));
+        document.getElementById('st').innerText = '🟢 RÁDIO CONECTADO AO VIVO';
+        pingTm = setInterval(function() {
+          if (ws.readyState === 1) ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(ref++) }));
+        }, 25000);
+      };
 
-      ch.on('broadcast', { event: 'al' }, function(m) {
-        if (map) L.marker(m.payload.p).addTo(map).bindPopup(m.payload.t + ' - ' + m.payload.n).openPopup();
-        document.getElementById('log').innerText = '🚨 ' + m.payload.t + ' (' + m.payload.n + ')';
-        try { var f = new SpeechSynthesisUtterance(m.payload.t); f.lang = 'pt-BR'; speechSynthesis.speak(f); } catch(e){}
-      });
+      ws.onmessage = function(ev) {
+        var d = JSON.parse(ev.data);
+        if (d.event === 'broadcast' && d.payload && d.payload.payload) {
+          var p = d.payload.payload;
+          if (p.n === nome && !eco) return;
+          if (d.payload.event === 'voz') {
+            document.getElementById('log').innerText = '🔊 ' + p.n + ' falando agora...';
+            mostrarTag('🔊 Voz de ' + p.n);
+            var a = document.getElementById('aud');
+            a.src = p.b;
+            a.play().catch(function(){});
+            a.onended = function() { document.getElementById('log').innerText = 'Frequência livre'; };
+          }
+          if (d.payload.event === 'al') {
+            mostrarTag(p.t + ' — por ' + p.n);
+            document.getElementById('log').innerText = p.t + ' (' + p.n + ')';
+            try { var f = new SpeechSynthesisUtterance('Atenção QAP! ' + p.n + ' informou: ' + p.t); f.lang = 'pt-BR'; speechSynthesis.speak(f); } catch(e){}
+          }
+        }
+      };
 
-      ch.subscribe(function(s) {
-        document.getElementById('st').innerText = (s === 'SUBSCRIBED') ? '🟢 RÁDIO ATIVO' : 'Status: ' + s;
-        if (s === 'SUBSCRIBED') ch.track({ t: Date.now() });
-      });
+      ws.onerror = function() { document.getElementById('st').innerText = '🔴 Erro de rede'; };
+    }
+
+    function enviarWS(evento, dados) {
+      if (!ws || ws.readyState !== 1) return;
+      var canal = 'realtime:qap-' + document.getElementById('reg').value;
+      ws.send(JSON.stringify({
+        topic: canal,
+        event: 'broadcast',
+        payload: { type: 'broadcast', event: evento, payload: dados },
+        ref: String(ref++)
+      }));
     }
 
     function alerta(t) {
-      if (map) L.marker(pos).addTo(map).bindPopup(t).openPopup();
-      if (ch) ch.send({ type: 'broadcast', event: 'al', payload: { n: nome, t: t, p: pos } });
+      mostrarTag(t + ' — por Você');
+      enviarWS('al', { n: nome, t: t });
       document.getElementById('log').innerText = '✅ Enviado: ' + t;
     }
 
@@ -150,7 +177,7 @@
         rec.onstop = function() {
           var rd = new FileReader();
           rd.readAsDataURL(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
-          rd.onloadend = function() { if (ch) ch.send({ type: 'broadcast', event: 'voz', payload: { n: nome, b: rd.result } }); };
+          rd.onloadend = function() { enviarWS('voz', { n: nome, b: rd.result }); };
           if (!auto) s.getTracks().forEach(function(t){ t.stop(); });
         };
         rec.start();
@@ -163,37 +190,3 @@
       if (e) e.preventDefault();
       if (rec && rec.state === 'recording') {
         rec.stop();
-        document.getElementById('ptt').classList.remove('rec');
-        document.getElementById('log').innerText = '✅ Áudio enviado!';
-      }
-    }
-
-    function toggleAuto() {
-      auto = !auto;
-      var b = document.getElementById('bauto');
-      b.innerText = auto ? 'AUTO: ON' : 'AUTO: OFF';
-      b.classList.toggle('on', auto);
-      if (auto) {
-        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
-          strm = s;
-          var ctx = new (window.AudioContext || window.webkitAudioContext)();
-          var an = ctx.createAnalyser(); an.fftSize = 512;
-          ctx.createMediaStreamSource(s).connect(an);
-          var arr = new Uint8Array(an.frequencyBinCount), tm;
-          (function loop() {
-            if (!auto) return;
-            an.getByteFrequencyData(arr);
-            var v = arr.reduce(function(a,b){return a+b;},0)/arr.length;
-            if (v > 25) { if (!rec || rec.state !== 'recording') startRec(); clearTimeout(tm); tm = setTimeout(stopRec, 1200); }
-            requestAnimationFrame(loop);
-          })();
-        });
-      } else if (strm) { strm.getTracks().forEach(function(t){ t.stop(); }); }
-    }
-
-    var p = document.getElementById('ptt');
-    p.onmousedown = p.ontouchstart = startRec;
-    p.onmouseup = p.ontouchend = stopRec;
-  </script>
-</body>
-</html>
