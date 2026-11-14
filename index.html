@@ -16,10 +16,10 @@
     select, .btop { background: #111827; color: #fff; border: 1px solid #4b5563; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; }
     .on { background: #059669 !important; border-color: #34d399 !important; }
     #bar { background: #064e3b; color: #6ee7b7; font-size: 11px; padding: 5px 12px; display: flex; justify-content: space-between; font-weight: bold; }
-    #map-area { flex: 1; width: 100%; background: #1e293b; position: relative; overflow: hidden; }
-    #map-frame { width: 100%; height: 100%; border: none; }
-    #feed-alertas { position: absolute; top: 8px; left: 8px; right: 8px; pointer-events: none; display: flex; flex-direction: column; gap: 4px; z-index: 10; }
-    .tag-alerta { background: rgba(17, 24, 39, 0.94); border-left: 4px solid #f59e0b; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+    #radar-area { flex: 1; width: 100%; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); position: relative; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .radar-topo { text-align: center; padding: 10px; border: 1px dashed #374151; border-radius: 12px; background: rgba(31, 41, 55, 0.6); }
+    .tag-alerta { background: #1f2937; border-left: 4px solid #f59e0b; padding: 10px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+    .tag-alerta a { color: #38bdf8; font-size: 11px; text-decoration: none; border: 1px solid #38bdf8; padding: 4px 8px; border-radius: 6px; }
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 6px; background: #1f2937; }
     .al { border: none; border-radius: 8px; padding: 10px 2px; font-weight: bold; font-size: 11px; color: #fff; cursor: pointer; }
     .radio { background: #111827; padding: 10px 12px 18px; border-top: 1px solid #374151; }
@@ -54,9 +54,12 @@
       </div>
     </header>
     <div id="bar"><span id="st">Conectando...</span><span id="gps-txt">Janga / Paulista</span></div>
-    <div id="map-area">
-      <iframe id="map-frame" src="https://google.com"></iframe>
-      <div id="feed-alertas"></div>
+    <div id="radar-area">
+      <div class="radar-topo">
+        <div style="color:#10b981;font-size:13px;font-weight:bold;">RADAR DE ROTAS E ALERTAS AO VIVO</div>
+        <div id="coord-txt" style="color:#9ca3af;font-size:11px;margin-top:4px;">Aguardando alertas da galera na frequencia...</div>
+      </div>
+      <div id="feed-alertas" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
     <div class="grid">
       <button type="button" class="al" style="background:#2563eb" data-t="BLITZ NA VIA">BLITZ</button>
@@ -104,7 +107,7 @@
           lat = p.coords.latitude;
           lng = p.coords.longitude;
           document.getElementById('gps-txt').innerText = 'GPS Ativo';
-          document.getElementById('map-frame').src = 'https://google.com' + lat + ',' + lng + '&z=16&output=embed';
+          document.getElementById('coord-txt').innerText = 'Sua posicao: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
         });
       }
     };
@@ -122,19 +125,20 @@
     for (var i = 0; i < botoesAlerta.length; i++) {
       botoesAlerta[i].onclick = function() {
         var t = this.getAttribute('data-t');
-        mostrarTag(t + ' - por Voce');
-        enviarWS('al', { n: nome, t: t });
+        mostrarTag(t + ' - por Voce', lat, lng);
+        enviarWS('al', { n: nome, t: t, la: lat, ln: lng });
         document.getElementById('log').innerText = 'Enviado: ' + t;
       };
     }
 
-    function mostrarTag(texto) {
+    function mostrarTag(texto, la, ln) {
       var feed = document.getElementById('feed-alertas');
       var div = document.createElement('div');
       div.className = 'tag-alerta';
-      div.innerText = texto;
+      var linkMapa = (la && ln) ? '<a href="https://google.com' + la + ',' + ln + '" target="_blank">VER NO MAPA</a>' : '';
+      div.innerHTML = '<span>' + texto + '</span>' + linkMapa;
       feed.prepend(div);
-      if (feed.children.length > 3) {
+      if (feed.children.length > 6) {
         feed.removeChild(feed.lastChild);
       }
     }
@@ -168,7 +172,7 @@
           if (p.n === nome && !eco) return;
           if (d.payload.event === 'voz') {
             document.getElementById('log').innerText = 'OUVINDO: ' + p.n;
-            mostrarTag('Voz de ' + p.n);
+            mostrarTag('Audio de ' + p.n);
             var a = document.getElementById('aud');
             a.src = p.b;
             a.play().catch(function(){});
@@ -177,7 +181,7 @@
             };
           }
           if (d.payload.event === 'al') {
-            mostrarTag(p.t + ' - por ' + p.n);
+            mostrarTag(p.t + ' - por ' + p.n, p.la, p.ln);
             document.getElementById('log').innerText = p.t + ' (' + p.n + ')';
             try {
               var f = new SpeechSynthesisUtterance('Atencao QAP! ' + p.n + ' informou: ' + p.t);
@@ -201,18 +205,3 @@
         event: 'broadcast',
         payload: { type: 'broadcast', event: evento, payload: dados },
         ref: String(ref++)
-      }));
-    }
-
-    function startRec(e) {
-      if (e) e.preventDefault();
-      if (rec && rec.state === 'recording') return;
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
-        if (auto) strm = s;
-        rec = new MediaRecorder(s);
-        chunks = [];
-        rec.ondataavailable = function(ev) { if (ev.data.size > 0) chunks.push(ev.data); };
-        rec.onstop = function() {
-          var rd = new FileReader();
-          rd.readAsDataURL(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
-          rd.onloadend = function() { enviarWS('voz', { n: nome, b: rd.result }); };
