@@ -57,30 +57,36 @@
     <button type="button" id="ptt">SEGURE PARA FALAR</button>
   </div>
   <audio id="aud" playsinline></audio>
-  <script>
-    var nome="", lat=-7.945, lng=-34.880, ws, eco=false, auto=false, rec, chunks=[], strm;
+   <script>
+    var nome="", lat=-7.945, lng=-34.880, es=null, eco=false, auto=false, rec, chunks=[], strm;
     function addTag(txt, la, ln){
       var d=document.createElement("div"); d.className="tag";
       d.innerHTML="<span>"+txt+"</span>"+(la?"<a href='https://google.com"+la+","+ln+"' target='_blank'>MAPA</a>":"");
       document.getElementById("feed").prepend(d);
     }
     function conn(){
-      if(ws) try{ws.close();}catch(e){}
+      if(es) try{es.close();}catch(e){}
       document.getElementById("st").innerText="Conectando...";
-      ws=new WebSocket("wss://://postman-echo.com");
-      ws.onopen=function(){ document.getElementById("st").innerText="RADIO CONECTADO AO VIVO"; };
-      ws.onmessage=function(e){
+      var canal="emqap_pe_2026_"+document.getElementById("reg").value;
+      es=new EventSource("https://ntfy.sh"+canal+"/sse");
+      es.onopen=function(){ document.getElementById("st").innerText="RADIO CONECTADO AO VIVO"; };
+      es.onmessage=function(e){
         try{
-          var d=JSON.parse(e.data);
-          if(d.ch!==document.getElementById("reg").value) return;
+          var m=JSON.parse(e.data);
+          if(!m.message) return;
+          var d=JSON.parse(m.message);
           if(d.n===nome && !eco) return;
           if(d.tp==="voz"){ document.getElementById("log").innerText="OUVINDO: "+d.n; addTag("Audio de "+d.n); var a=document.getElementById("aud"); a.src=d.b; a.play().catch(function(){}); a.onended=function(){document.getElementById("log").innerText="Frequencia livre";}; }
           if(d.tp==="al"){ addTag(d.t+" ("+d.n+")", d.la, d.ln); try{var f=new SpeechSynthesisUtterance(d.t); f.lang="pt-BR"; speechSynthesis.speak(f);}catch(x){} }
         }catch(x){}
       };
-      ws.onclose=function(){ setTimeout(conn, 2000); };
+      es.onerror=function(){ document.getElementById("st").innerText="Reconectando..."; };
     }
-    function send(o){ if(ws && ws.readyState===1){ o.ch=document.getElementById("reg").value; o.n=nome; ws.send(JSON.stringify(o)); } }
+    function send(o){
+      o.n=nome;
+      var canal="emqap_pe_2026_"+document.getElementById("reg").value;
+      fetch("https://ntfy.sh"+canal, { method:"POST", body:JSON.stringify(o) }).catch(function(){});
+    }
     document.getElementById("btn-in").onclick=function(){
       nome=document.getElementById("nome").value.trim();
       if(!nome){ alert("Digite seu Nome!"); return; }
