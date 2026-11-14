@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="notranslate" translate="no">
 <head>
   <meta charset="UTF-8" />
+  <meta name="google" content="notranslate" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Em QAP</title>
   <style>
@@ -187,6 +188,3 @@
     }
 
     function stopRec(e) {
-      if (e) e.preventDefault();
-      if (rec && rec.state === 'recording') {
-        rec.stop();
