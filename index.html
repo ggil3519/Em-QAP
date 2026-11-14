@@ -75,7 +75,7 @@
     </div>
   </div>
 
-  <audio id="aud" playsinline></audio>
+   <audio id="aud" playsinline></audio>
 
   <script>
     var URL_SUPA = "wdezbueowxzrtxdzxrph.supabase.co";
@@ -188,3 +188,66 @@
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
         if (auto) strm = s;
         rec = new MediaRecorder(s);
+        chunks = [];
+        rec.ondataavailable = function(ev) { if (ev.data.size > 0) chunks.push(ev.data); };
+        rec.onstop = function() {
+          var rd = new FileReader();
+          rd.readAsDataURL(new Blob(chunks, { type: rec.mimeType || "audio/webm" }));
+          rd.onloadend = function() { enviarWS("voz", { n: nome, b: rd.result }); };
+          if (!auto) s.getTracks().forEach(function(t){ t.stop(); });
+        };
+        rec.start();
+        document.getElementById("ptt").classList.add("rec");
+        document.getElementById("log").innerText = "TRANSMITINDO VOZ...";
+      }).catch(function(){ alert("Libere o microfone no navegador!"); });
+    }
+
+    function stopRec(e) {
+      if (e) e.preventDefault();
+      if (rec && rec.state === "recording") {
+        rec.stop();
+        document.getElementById("ptt").classList.remove("rec");
+        document.getElementById("log").innerText = "Audio enviado!";
+      }
+    }
+
+    function ligarAuto() {
+      auto = !auto;
+      var b = document.getElementById("bauto");
+      b.innerText = auto ? "AUTO: ON" : "AUTO: OFF";
+      b.classList.toggle("on", auto);
+      if (auto) {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
+          strm = s;
+          var ctx = new (window.AudioContext || window.webkitAudioContext)();
+          var an = ctx.createAnalyser();
+          an.fftSize = 512;
+          ctx.createMediaStreamSource(s).connect(an);
+          var arr = new Uint8Array(an.frequencyBinCount);
+          var tm = null;
+          function loop() {
+            if (!auto) return;
+            an.getByteFrequencyData(arr);
+            var soma = 0;
+            for (var k = 0; k < arr.length; k++) soma += arr[k];
+            if ((soma / arr.length) > 25) {
+              if (!rec || rec.state !== "recording") startRec();
+              clearTimeout(tm);
+              tm = setTimeout(stopRec, 1200);
+            }
+            requestAnimationFrame(loop);
+          }
+          loop();
+        }).catch(function(){
+          auto = false;
+          b.innerText = "AUTO: OFF";
+          b.classList.remove("on");
+          alert("Libere o microfone!");
+        });
+      } else if (strm) {
+        strm.getTracks().forEach(function(t){ t.stop(); });
+      }
+    }
+  </script>
+</body>
+</html>
