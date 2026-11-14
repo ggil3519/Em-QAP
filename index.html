@@ -90,11 +90,11 @@
     var strm = null;
 
     function encLen(len) {
-      var out = [];
+      var out = new Array();
       do {
         var b = len % 128;
         len = Math.floor(len / 128);
-        if (len > 0) b |= 128;
+        if (len > 0) b = b | 128;
         out.push(b);
       } while (len > 0);
       return out;
@@ -102,7 +102,8 @@
 
     function strBytes(s) {
       var u = new TextEncoder().encode(s);
-      return [u.length >> 8, u.length & 255].concat(Array.from(u));
+      var arr = new Array(u.length >> 8, u.length & 255);
+      return arr.concat(Array.from(u));
     }
 
     function iniciarRadio() {
@@ -124,36 +125,36 @@
       if (ws) { try { ws.close(); } catch(e){} }
       clearInterval(pingTm);
       document.getElementById("st").innerText = "Conectando frequencia...";
-      ws = new WebSocket("wss://broker.emqx.io:8084/mqtt", ["mqtt"]);
+      ws = new WebSocket("wss://broker.emqx.io:8084/mqtt", "mqtt");
       ws.binaryType = "arraybuffer";
 
       ws.onopen = function() {
         var cid = "emqap_" + Math.floor(Math.random() * 999999);
-        var vh =;
+        var vh = new Array(0, 4, 77, 81, 84, 84, 4, 2, 0, 60);
         var pl = strBytes(cid);
-        var pkt = [0x10].concat(encLen(vh.length + pl.length), vh, pl);
+        var pkt = new Array(16).concat(encLen(vh.length + pl.length), vh, pl);
         ws.send(new Uint8Array(pkt));
 
         var topico = "emqap/pe/canal/" + document.getElementById("reg").value;
-        var subPl = [0, 1].concat(strBytes(topico), [0]);
-        var subPkt = [0x82].concat(encLen(subPl.length), subPl);
+        var subPl = new Array(0, 1).concat(strBytes(topico), new Array(0));
+        var subPkt = new Array(130).concat(encLen(subPl.length), subPl);
         ws.send(new Uint8Array(subPkt));
 
         document.getElementById("st").innerText = "RADIO CONECTADO AO VIVO";
         pingTm = setInterval(function() {
-          if (ws.readyState === 1) ws.send(new Uint8Array([0xC0, 0x00]));
+          if (ws.readyState === 1) ws.send(new Uint8Array(new Array(192, 0)));
         }, 25000);
       };
 
       ws.onmessage = function(ev) {
         var buf = new Uint8Array(ev.data);
-        if ((buf[0] & 0xF0) === 0x30) {
+        if ((buf.at(0) & 240) === 48) {
           var idx = 1;
           while (buf[idx] & 128) idx++;
           idx++;
           var tLen = (buf[idx] << 8) + buf[idx + 1];
           idx += 2 + tLen;
-          if (buf[0] & 0x06) idx += 2;
+          if (buf.at(0) & 6) idx += 2;
           var txt = new TextDecoder().decode(buf.slice(idx));
           try {
             var d = JSON.parse(txt);
@@ -189,10 +190,8 @@
       var topico = "emqap/pe/canal/" + document.getElementById("reg").value;
       var payload = new TextEncoder().encode(JSON.stringify(obj));
       var tBytes = strBytes(topico);
-      var pkt = [0x30].concat(encLen(tBytes.length + payload.length), tBytes, Array.from(payload));
+      var pkt = new Array(48).concat(encLen(tBytes.length + payload.length), tBytes, Array.from(payload));
       ws.send(new Uint8Array(pkt));
     }
 
     function mandarAlerta(t) {
-      mostrarTag(t + " - por Voce", lat, lng);
-      enviarMsg({ tipo: "alerta", n: nome, t: t, la: lat, ln: lng });
