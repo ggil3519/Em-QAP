@@ -3,211 +3,197 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Em QAP - Rádio e Mapa Motoboy</title>
+  <title>Em QAP</title>
   <link rel="stylesheet" href="https://unpkg.com" />
+  <script src="https://unpkg.com"></script>
+  <script src="https://jsdelivr.net"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-    body { background: #111827; color: #fff; width: 100%; height: 100vh; overflow: hidden; }
-    
-    #tela-login { position: fixed; inset: 0; background: #111827; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
-    #tela-login h1 { font-size: 32px; color: #f59e0b; margin-bottom: 8px; }
-    #tela-login p { color: #9ca3af; font-size: 14px; margin-bottom: 20px; max-width: 320px; }
-    .card-plano { background: #1f2937; border: 2px solid #f59e0b; border-radius: 16px; padding: 20px; width: 100%; max-width: 340px; }
-    .preco { font-size: 28px; font-weight: bold; color: #10b981; margin: 8px 0; }
-    input.campo { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #4b5563; background: #111827; color: #fff; font-size: 16px; margin-bottom: 12px; }
-    .btn-entrar { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #f59e0b; color: #111827; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-    .btn-pix { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #10b981; background: transparent; color: #10b981; font-size: 14px; font-weight: bold; cursor: pointer; }
-
-    #app-container { display: none; flex-direction: column; width: 100%; height: 100vh; }
-    header { background: #1f2937; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f59e0b; height: 56px; }
-    header h1 { font-size: 16px; color: #f59e0b; }
-    .controles-topo { display: flex; gap: 5px; align-items: center; }
-    select#canal-regiao { background: #111827; color: #fff; border: 1px solid #4b5563; padding: 5px; border-radius: 8px; font-size: 11px; }
-    .btn-topo { background: #374151; color: #d1d5db; border: 1px solid #4b5563; padding: 6px 10px; border-radius: 16px; font-size: 11px; font-weight: bold; cursor: pointer; }
-    .btn-topo.ativo { background: #059669; color: #fff; border-color: #34d399; }
-    
-    #barra-status { background: #064e3b; color: #6ee7b7; font-size: 11px; padding: 5px 12px; display: flex; justify-content: space-between; font-weight: bold; }
-    #map { flex: 1; width: 100%; min-height: 220px; background: #1e293b; z-index: 1; position: relative; }
-    
-    .alertas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; background: #1f2937; }
-    .btn-alerta { border: none; border-radius: 8px; padding: 10px 4px; font-weight: bold; font-size: 11px; color: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .blitz { background: #2563eb; }
-    .acidente { background: #d97706; }
-    .perigo { background: #7c3aed; }
-    .sos { background: #dc2626; }
-    
-    .radio-area { background: #111827; padding: 10px 12px 20px; border-top: 1px solid #374151; display: flex; flex-direction: column; gap: 8px; }
-    #ptt-btn { width: 100%; height: 82px; border-radius: 16px; border: 3px solid #f59e0b; background: #1f2937; color: #f59e0b; font-size: 18px; font-weight: bold; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
-    #ptt-btn.falando { background: #dc2626; border-color: #fca5a5; color: #fff; }
-    #log-voz { text-align: center; font-size: 12px; color: #fbbf24; font-weight: bold; }
+    body { background: #111827; color: #fff; height: 100vh; overflow: hidden; }
+    #login { position: fixed; inset: 0; background: #111827; z-index: 99; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+    .box { background: #1f2937; border: 2px solid #f59e0b; border-radius: 16px; padding: 20px; width: 100%; max-width: 330px; }
+    input { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid #4b5563; background: #111827; color: #fff; font-size: 16px; margin: 12px 0; }
+    .btn { width: 100%; padding: 15px; border-radius: 10px; border: none; background: #f59e0b; color: #111827; font-size: 16px; font-weight: bold; cursor: pointer; }
+    #app { display: none; flex-direction: column; height: 100vh; }
+    header { background: #1f2937; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f59e0b; }
+    select, .btop { background: #111827; color: #fff; border: 1px solid #4b5563; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: bold; }
+    .on { background: #059669 !important; border-color: #34d399 !important; }
+    #bar { background: #064e3b; color: #6ee7b7; font-size: 11px; padding: 4px 12px; display: flex; justify-content: space-between; font-weight: bold; }
+    #map { flex: 1; width: 100%; background: #1e293b; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 6px; background: #1f2937; }
+    .al { border: none; border-radius: 8px; padding: 10px 2px; font-weight: bold; font-size: 11px; color: #fff; }
+    .radio { background: #111827; padding: 10px 12px 18px; border-top: 1px solid #374151; }
+    #ptt { width: 100%; height: 80px; border-radius: 14px; border: 3px solid #f59e0b; background: #1f2937; color: #f59e0b; font-size: 18px; font-weight: bold; user-select: none; touch-action: none; }
+    #ptt.rec { background: #dc2626; color: #fff; border-color: #fca5a5; }
+    #log { text-align: center; font-size: 12px; color: #fbbf24; margin-bottom: 6px; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <div id="tela-login">
-    <h1>🏍️ EM QAP</h1>
-    <p>Rádio PX ao vivo no Bluetooth e alertas de rota em tempo real para motoboys.</p>
-    
-    <div class="card-plano">
-      <div style="font-size: 13px; color: #f59e0b; font-weight: bold;">ASSINATURA MENSAL</div>
-      <div class="preco">R$ 25,00 <span style="font-size: 14px; color: #9ca3af;">/mês</span></div>
-      <div style="font-size: 12px; color: #d1d5db; margin-bottom: 14px;">✔ Rádio ao vivo sem digitar<br>✔ Alertas de Blitz, Perigo e SOS no fone<br>✔ Mapa com colegas na região</div>
-      
-      <input type="text" id="input-nome" class="campo" placeholder="Seu nome ou QRA (Ex: Gil - Paulista)" />
-      
-      <button type="button" class="btn-entrar" onclick="entrarAgora()">
-        ENTRAR NA FREQUÊNCIA (TESTE GRÁTIS)
-      </button>
-      
-      <button type="button" class="btn-pix" onclick="alert('Chave Pix (R$ 25,00): SUA_CHAVE_PIX_AQUI@email.com')">
-        💠 PAGAR R$ 25 VIA PIX (COPIAR CHAVE)
-      </button>
+  <div id="login">
+    <h1 style="color:#f59e0b;margin-bottom:10px;">🏍️ EM QAP</h1>
+    <div class="box">
+      <div style="color:#10b981;font-size:24px;font-weight:bold;">R$ 25,00 /mês</div>
+      <div style="font-size:12px;color:#9ca3af;margin-top:4px;">Rádio PX Bluetooth + Alertas ao Vivo</div>
+      <input type="text" id="nome" placeholder="Digite seu Nome ou QRA *" />
+      <button class="btn" onclick="entrar()">ENTRAR NA FREQUÊNCIA</button>
     </div>
   </div>
 
-  <div id="app-container">
+  <div id="app">
     <header>
-      <h1>🏍️ EM QAP</h1>
-      <div class="controles-topo">
-        <select id="canal-regiao" onchange="trocarCanal()">
-          <option value="paulista-janga">📍 Paulista/Janga</option>
+      <b style="color:#f59e0b;">🏍️ EM QAP</b>
+      <div>
+        <select id="reg" onchange="conectar()">
+          <option value="paulista">📍 Paulista/Janga</option>
           <option value="olinda">📍 Olinda</option>
           <option value="recife">📍 Recife</option>
-          <option value="geral-pe">📍 Geral PE</option>
         </select>
-        <button type="button" id="btn-eco" class="btn-topo" onclick="mudarEco()">🔁 ECO: OFF</button>
-        <button type="button" id="btn-auto" class="btn-topo" onclick="mudarAuto()">🎧 AUTO: OFF</button>
+        <button id="beco" class="btop" onclick="eco=!eco;this.classList.toggle('on');conectar()">ECO</button>
+        <button id="bauto" class="btop" onclick="toggleAuto()">AUTO: OFF</button>
       </div>
     </header>
-
-    <div id="barra-status">
-      <span id="status-rede">Carregando sistema...</span>
-      <span id="qtd-online">● 1 online</span>
-    </div>
-
+    <div id="bar"><span id="st">Iniciando...</span><span id="on">● 1 online</span></div>
     <div id="map"></div>
-
-    <div class="alertas">
-      <button type="button" class="btn-alerta blitz" onclick="enviarAlerta('BLITZ NA VIA')">🚓<span>BLITZ</span></button>
-      <button type="button" class="btn-alerta acidente" onclick="enviarAlerta('ACIDENTE NA VIA')">⚠️<span>ACIDENTE</span></button>
-      <button type="button" class="btn-alerta perigo" onclick="enviarAlerta('ÁREA DE RISCO')">🚨<span>PERIGO</span></button>
-      <button type="button" class="btn-alerta sos" onclick="enviarAlerta('PEDIDO DE SOS URGENTE')">🆘<span>SOS</span></button>
+    <div class="grid">
+      <button class="al" style="background:#2563eb" onclick="alerta('BLITZ')">🚓 BLITZ</button>
+      <button class="al" style="background:#d97706" onclick="alerta('ACIDENTE')">⚠️ ACIDENTE</button>
+      <button class="al" style="background:#7c3aed" onclick="alerta('PERIGO')">🚨 PERIGO</button>
+      <button class="al" style="background:#dc2626" onclick="alerta('SOS')">🆘 SOS</button>
     </div>
-
-    <div class="radio-area">
-      <div id="log-voz">Segure o botão ou ligue o AUTO lá em cima</div>
-      <button type="button" id="ptt-btn">🎙️ SEGURE PARA FALAR (QAP)</button>
+    <div class="radio">
+      <div id="log">Segure o botão ou ligue o AUTO</div>
+      <button id="ptt">🎙️ SEGURE PARA FALAR</button>
     </div>
   </div>
 
-  <audio id="player-radio" playsinline></audio>
+  <audio id="aud" playsinline></audio>
 
   <script>
-    var meuNome = 'Motoboy-' + Math.floor(100 + Math.random() * 900);
-    var minhaPos = [-7.9408, -34.8731];
-    var map = null;
-    var meuMarcador = null;
-    var outrosMarcadores = {};
-    var supa = null;
-    var canal = null;
-    var modoEco = false;
-    var modoAuto = false;
-    var mediaRecorder = null;
-    var audioChunks = [];
-    var streamGlobal = null;
-    var tentativas = 0;
+    var nome = '', pos = [-7.9408, -34.8731], map, pin, supa, ch, eco = false, auto = false, rec, chunks = [], strm;
 
-    function carregarScript(url, callback) {
-      var s = document.createElement('script');
-      s.src = url;
-      s.onload = callback;
-      s.onerror = function() {
-        document.getElementById('status-rede').innerText = '⚠️ Falha ao baixar módulo: ' + url.split('/')[2];
-      };
-      document.head.appendChild(s);
-    }
+    function entrar() {
+      nome = document.getElementById('nome').value.trim();
+      if (!nome) { alert('Digite seu Nome ou QRA para entrar!'); return; }
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      document.getElementById('aud').play().catch(function(){});
 
-    function entrarAgora() {
-      var campo = document.getElementById('input-nome');
-      if (campo && campo.value.trim() !== '') {
-        meuNome = campo.value.trim();
+      if (typeof L !== 'undefined') {
+        map = L.map('map').setView(pos, 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        pin = L.marker(pos).addTo(map).bindPopup(nome).openPopup();
+        setTimeout(function(){ map.invalidateSize(); }, 300);
+      } else {
+        document.getElementById('st').innerText = 'Erro Mapa';
       }
-      document.getElementById('tela-login').style.display = 'none';
-      document.getElementById('app-container').style.display = 'flex';
 
-      var player = document.getElementById('player-radio');
-      if (player) player.play().catch(function() {});
-
-      document.getElementById('status-rede').innerText = 'Baixando mapa e rádio...';
-
-      carregarScript('https://unpkg.com', function() {
-        iniciarMapa();
-      });
-
-      carregarScript('https://jsdelivr.net', function() {
-        iniciarRadio();
-      });
-    }
-
-    function iniciarMapa() {
-      try {
-        if (!map && typeof L !== 'undefined') {
-          map = L.map('map').setView(minhaPos, 15);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-          }).addTo(map);
-          meuMarcador = L.marker(minhaPos).addTo(map).bindPopup('<b>Você (' + meuNome + ')</b>').openPopup();
-          setTimeout(function() { map.invalidateSize(); }, 400);
-        }
-      } catch (e) {}
+      if (typeof supabase !== 'undefined') {
+        supa = supabase.createClient('https://supabase.co', 'sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi');
+        conectar();
+      } else {
+        document.getElementById('st').innerText = 'Erro Servidor';
+      }
 
       if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(function(pos) {
-          minhaPos = [pos.coords.latitude, pos.coords.longitude];
-          if (meuMarcador) meuMarcador.setLatLng(minhaPos);
-          if (map) map.setView(minhaPos);
-          if (canal) {
-            canal.send({
-              type: 'broadcast',
-              event: 'gps',
-              payload: { autor: meuNome, lat: minhaPos, lng: minhaPos }
-            });
-          }
+        navigator.geolocation.watchPosition(function(p) {
+          pos = [p.coords.latitude, p.coords.longitude];
+          if (pin) pin.setLatLng(pos);
+          if (map) map.setView(pos);
         });
       }
     }
 
-    function iniciarRadio() {
-      try {
-        if (!supa && typeof supabase !== 'undefined') {
-          supa = supabase.createClient(
-            'https://supabase.co',
-            'sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi'
-          );
-          conectarCanal('paulista-janga');
-        }
-      } catch (e) {
-        document.getElementById('status-rede').innerText = 'Erro rádio: ' + e.message;
+    function conectar() {
+      if (!supa) return;
+      if (ch) supa.removeChannel(ch);
+      var r = document.getElementById('reg').value;
+      ch = supa.channel('qap-' + r, { config: { broadcast: { self: eco }, presence: { key: nome } } });
+
+      ch.on('presence', { event: 'sync' }, function() {
+        document.getElementById('on').innerText = '● ' + Object.keys(ch.presenceState()).length + ' online';
+      });
+
+      ch.on('broadcast', { event: 'voz' }, function(m) {
+        document.getElementById('log').innerText = '🔊 ' + m.payload.n + ' falando...';
+        var a = document.getElementById('aud');
+        a.src = m.payload.b;
+        a.play().catch(function(){});
+        a.onended = function() { document.getElementById('log').innerText = 'Frequência livre'; };
+      });
+
+      ch.on('broadcast', { event: 'al' }, function(m) {
+        if (map) L.marker(m.payload.p).addTo(map).bindPopup(m.payload.t + ' - ' + m.payload.n).openPopup();
+        document.getElementById('log').innerText = '🚨 ' + m.payload.t + ' (' + m.payload.n + ')';
+        try { var f = new SpeechSynthesisUtterance(m.payload.t); f.lang = 'pt-BR'; speechSynthesis.speak(f); } catch(e){}
+      });
+
+      ch.subscribe(function(s) {
+        document.getElementById('st').innerText = (s === 'SUBSCRIBED') ? '🟢 RÁDIO ATIVO' : 'Status: ' + s;
+        if (s === 'SUBSCRIBED') ch.track({ t: Date.now() });
+      });
+    }
+
+    function alerta(t) {
+      if (map) L.marker(pos).addTo(map).bindPopup(t).openPopup();
+      if (ch) ch.send({ type: 'broadcast', event: 'al', payload: { n: nome, t: t, p: pos } });
+      document.getElementById('log').innerText = '✅ Enviado: ' + t;
+    }
+
+    function startRec(e) {
+      if (e) e.preventDefault();
+      if (rec && rec.state === 'recording') return;
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
+        if (auto) strm = s;
+        rec = new MediaRecorder(s); chunks = [];
+        rec.ondataavailable = function(ev) { if (ev.data.size > 0) chunks.push(ev.data); };
+        rec.onstop = function() {
+          var rd = new FileReader();
+          rd.readAsDataURL(new Blob(chunks, { type: rec.mimeType || 'audio/webm' }));
+          rd.onloadend = function() { if (ch) ch.send({ type: 'broadcast', event: 'voz', payload: { n: nome, b: rd.result } }); };
+          if (!auto) s.getTracks().forEach(function(t){ t.stop(); });
+        };
+        rec.start();
+        document.getElementById('ptt').classList.add('rec');
+        document.getElementById('log').innerText = '🔴 TRANSMITINDO...';
+      }).catch(function(){ alert('Libere o microfone!'); });
+    }
+
+    function stopRec(e) {
+      if (e) e.preventDefault();
+      if (rec && rec.state === 'recording') {
+        rec.stop();
+        document.getElementById('ptt').classList.remove('rec');
+        document.getElementById('log').innerText = '✅ Áudio enviado!';
       }
     }
 
-    function conectarCanal(regiao) {
-      if (!supa) return;
-      if (canal) supa.removeChannel(canal);
+    function toggleAuto() {
+      auto = !auto;
+      var b = document.getElementById('bauto');
+      b.innerText = auto ? 'AUTO: ON' : 'AUTO: OFF';
+      b.classList.toggle('on', auto);
+      if (auto) {
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
+          strm = s;
+          var ctx = new (window.AudioContext || window.webkitAudioContext)();
+          var an = ctx.createAnalyser(); an.fftSize = 512;
+          ctx.createMediaStreamSource(s).connect(an);
+          var arr = new Uint8Array(an.frequencyBinCount), tm;
+          (function loop() {
+            if (!auto) return;
+            an.getByteFrequencyData(arr);
+            var v = arr.reduce(function(a,b){return a+b;},0)/arr.length;
+            if (v > 25) { if (!rec || rec.state !== 'recording') startRec(); clearTimeout(tm); tm = setTimeout(stopRec, 1200); }
+            requestAnimationFrame(loop);
+          })();
+        });
+      } else if (strm) { strm.getTracks().forEach(function(t){ t.stop(); }); }
+    }
 
-      document.getElementById('status-rede').innerText = 'Conectando frequência...';
-
-      canal = supa.channel('qap-' + regiao, {
-        config: {
-          broadcast: { self: modoEco },
-          presence: { key: meuNome }
-        }
-      });
-
-      canal.on('presence', { event: 'sync' }, function() {
-        var total = Object.keys(canal.presenceState()).length;
-        document.getElementById('qtd-online').innerText = '● ' + total + ' online';
-      });
-
-      canal.on('broadcast', { event: 'voz' }, function(msg) {
-        var p = msg.payload;
+    var p = document.getElementById('ptt');
+    p.onmousedown = p.ontouchstart = startRec;
+    p.onmouseup = p.ontouchend = stopRec;
+  </script>
+</body>
+</html>
