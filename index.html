@@ -16,8 +16,8 @@
     select, .btop { background: #111827; color: #fff; border: 1px solid #4b5563; padding: 6px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; }
     .on { background: #059669 !important; border-color: #34d399 !important; }
     #bar { background: #064e3b; color: #6ee7b7; font-size: 11px; padding: 5px 12px; display: flex; justify-content: space-between; font-weight: bold; }
-    #radar-area { flex: 1; width: 100%; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); position: relative; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-    .radar-topo { text-align: center; padding: 10px; border: 1px dashed #374151; border-radius: 12px; background: rgba(31, 41, 55, 0.6); }
+    #radar-area { flex: 1; width: 100%; background: #0f172a; position: relative; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .radar-topo { text-align: center; padding: 12px; border: 1px dashed #374151; border-radius: 12px; background: #1f2937; }
     .tag-alerta { background: #1f2937; border-left: 4px solid #f59e0b; padding: 10px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; color: #fff; display: flex; justify-content: space-between; align-items: center; }
     .tag-alerta a { color: #38bdf8; font-size: 11px; text-decoration: none; border: 1px solid #38bdf8; padding: 4px 8px; border-radius: 6px; }
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 6px; background: #1f2937; }
@@ -36,7 +36,9 @@
       <div style="color:#10b981;font-size:24px;font-weight:bold;">R$ 25,00 /mes</div>
       <div style="font-size:12px;color:#9ca3af;margin-top:4px;">Radio PX Bluetooth + Alertas ao Vivo</div>
       <input type="text" id="nome" placeholder="Digite seu Nome ou QRA *" />
-      <button type="button" class="btn" id="btn-go">ENTRAR NA FREQUENCIA</button>
+      <button type="button" class="btn" onclick="if(!document.getElementById('nome').value.trim()){alert('Digite seu Nome ou QRA!');return;} document.getElementById('login').style.display='none'; document.getElementById('app').style.display='flex'; iniciarRadio();">
+        ENTRAR NA FREQUENCIA
+      </button>
     </div>
   </div>
 
@@ -44,13 +46,13 @@
     <header>
       <b style="color:#f59e0b;">EM QAP</b>
       <div>
-        <select id="reg">
+        <select id="reg" onchange="conectarWS()">
           <option value="paulista">Paulista/Janga</option>
           <option value="olinda">Olinda</option>
           <option value="recife">Recife</option>
         </select>
-        <button type="button" id="beco" class="btop">ECO</button>
-        <button type="button" id="bauto" class="btop">AUTO: OFF</button>
+        <button type="button" id="beco" class="btop" onclick="eco=!eco;this.classList.toggle('on',eco)">ECO</button>
+        <button type="button" id="bauto" class="btop" onclick="ligarAuto()">AUTO: OFF</button>
       </div>
     </header>
     <div id="bar"><span id="st">Conectando...</span><span id="gps-txt">Janga / Paulista</span></div>
@@ -62,23 +64,23 @@
       <div id="feed-alertas" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
     <div class="grid">
-      <button type="button" class="al" style="background:#2563eb" data-t="BLITZ NA VIA">BLITZ</button>
-      <button type="button" class="al" style="background:#d97706" data-t="ACIDENTE NA VIA">ACIDENTE</button>
-      <button type="button" class="al" style="background:#7c3aed" data-t="AREA DE RISCO">PERIGO</button>
-      <button type="button" class="al" style="background:#dc2626" data-t="PEDIDO DE SOS">SOS</button>
+      <button type="button" class="al" style="background:#2563eb" onclick="mandarAlerta('BLITZ NA VIA')">BLITZ</button>
+      <button type="button" class="al" style="background:#d97706" onclick="mandarAlerta('ACIDENTE NA VIA')">ACIDENTE</button>
+      <button type="button" class="al" style="background:#7c3aed" onclick="mandarAlerta('AREA DE RISCO')">PERIGO</button>
+      <button type="button" class="al" style="background:#dc2626" onclick="mandarAlerta('PEDIDO DE SOS')">SOS</button>
     </div>
     <div class="radio">
       <div id="log">Segure o botao ou ligue o AUTO</div>
-      <button type="button" id="ptt">SEGURE PARA FALAR</button>
+      <button type="button" id="ptt" onmousedown="startRec(event)" onmouseup="stopRec(event)" ontouchstart="startRec(event)" ontouchend="stopRec(event)">SEGURE PARA FALAR</button>
     </div>
   </div>
 
   <audio id="aud" playsinline></audio>
 
   <script>
-    var URL_SUPA = 'wdezbueowxzrtxdzxrph.supabase.co';
-    var KEY_SUPA = 'sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi';
-    var nome = '';
+    var URL_SUPA = "wdezbueowxzrtxdzxrph.supabase.co";
+    var KEY_SUPA = "sb_publishable_q3jWuk-hxTtE3jwabRS_DA_HQQG3fZi";
+    var nome = "";
     var lat = -7.945;
     var lng = -34.880;
     var ws = null;
@@ -90,118 +92,99 @@
     var strm = null;
     var ref = 1;
 
-    document.getElementById('btn-go').onclick = function() {
-      nome = document.getElementById('nome').value.trim();
-      if (!nome) {
-        alert('Digite seu Nome ou QRA para entrar!');
-        return;
-      }
-      document.getElementById('login').style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-      document.getElementById('aud').play().catch(function(){});
-
+    function iniciarRadio() {
+      nome = document.getElementById("nome").value.trim();
+      var aud = document.getElementById("aud");
+      if (aud) aud.play().catch(function(){});
       conectarWS();
-
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(function(p) {
           lat = p.coords.latitude;
           lng = p.coords.longitude;
-          document.getElementById('gps-txt').innerText = 'GPS Ativo';
-          document.getElementById('coord-txt').innerText = 'Sua posicao: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+          document.getElementById("gps-txt").innerText = "GPS Ativo";
+          document.getElementById("coord-txt").innerText = "Sua posicao: " + lat.toFixed(4) + ", " + lng.toFixed(4);
         });
       }
-    };
+    }
 
-    document.getElementById('reg').onchange = function() {
-      conectarWS();
-    };
-
-    document.getElementById('beco').onclick = function() {
-      eco = !eco;
-      this.classList.toggle('on', eco);
-    };
-
-    var botoesAlerta = document.querySelectorAll('.al');
-    for (var i = 0; i < botoesAlerta.length; i++) {
-      botoesAlerta[i].onclick = function() {
-        var t = this.getAttribute('data-t');
-        mostrarTag(t + ' - por Voce', lat, lng);
-        enviarWS('al', { n: nome, t: t, la: lat, ln: lng });
-        document.getElementById('log').innerText = 'Enviado: ' + t;
-      };
+    function mandarAlerta(t) {
+      mostrarTag(t + " - por Voce", lat, lng);
+      enviarWS("al", { n: nome, t: t, la: lat, ln: lng });
+      document.getElementById("log").innerText = "Enviado: " + t;
     }
 
     function mostrarTag(texto, la, ln) {
-      var feed = document.getElementById('feed-alertas');
-      var div = document.createElement('div');
-      div.className = 'tag-alerta';
-      var linkMapa = (la && ln) ? '<a href="https://google.com' + la + ',' + ln + '" target="_blank">VER NO MAPA</a>' : '';
-      div.innerHTML = '<span>' + texto + '</span>' + linkMapa;
+      var feed = document.getElementById("feed-alertas");
+      var div = document.createElement("div");
+      div.className = "tag-alerta";
+      var link = (la && ln) ? "<a href='https://google.com" + la + "," + ln + "' target='_blank'>VER NO MAPA</a>" : "";
+      div.innerHTML = "<span>" + texto + "</span>" + link;
       feed.prepend(div);
-      if (feed.children.length > 6) {
-        feed.removeChild(feed.lastChild);
-      }
+      if (feed.children.length > 6) feed.removeChild(feed.lastChild);
     }
 
     function conectarWS() {
       if (ws) { try { ws.close(); } catch(e){} }
       clearInterval(pingTm);
-      document.getElementById('st').innerText = 'Conectando radio...';
-      var canal = 'realtime:qap-' + document.getElementById('reg').value;
-      ws = new WebSocket('wss://' + URL_SUPA + '/realtime/v1/websocket?apikey=' + KEY_SUPA + '&vsn=1.0.0');
+      document.getElementById("st").innerText = "Conectando radio...";
+      var canal = "realtime:qap-" + document.getElementById("reg").value;
+      ws = new WebSocket("wss://" + URL_SUPA + "/realtime/v1/websocket?apikey=" + KEY_SUPA + "&vsn=1.0.0");
 
       ws.onopen = function() {
         ws.send(JSON.stringify({
           topic: canal,
-          event: 'phx_join',
+          event: "phx_join",
           payload: { config: { broadcast: { self: true } } },
           ref: String(ref++)
         }));
-        document.getElementById('st').innerText = 'RADIO CONECTADO AO VIVO';
+        document.getElementById("st").innerText = "RADIO CONECTADO AO VIVO";
         pingTm = setInterval(function() {
-          if (ws.readyState === 1) {
-            ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(ref++) }));
-          }
+          if (ws.readyState === 1) ws.send(JSON.stringify({ topic: "phoenix", event: "heartbeat", payload: {}, ref: String(ref++) }));
         }, 25000);
       };
 
       ws.onmessage = function(ev) {
         var d = JSON.parse(ev.data);
-        if (d.event === 'broadcast' && d.payload && d.payload.payload) {
+        if (d.event === "broadcast" && d.payload && d.payload.payload) {
           var p = d.payload.payload;
           if (p.n === nome && !eco) return;
-          if (d.payload.event === 'voz') {
-            document.getElementById('log').innerText = 'OUVINDO: ' + p.n;
-            mostrarTag('Audio de ' + p.n);
-            var a = document.getElementById('aud');
+          if (d.payload.event === "voz") {
+            document.getElementById("log").innerText = "OUVINDO: " + p.n;
+            mostrarTag("Audio de " + p.n);
+            var a = document.getElementById("aud");
             a.src = p.b;
             a.play().catch(function(){});
-            a.onended = function() {
-              document.getElementById('log').innerText = 'Frequencia livre';
-            };
+            a.onended = function() { document.getElementById("log").innerText = "Frequencia livre"; };
           }
-          if (d.payload.event === 'al') {
-            mostrarTag(p.t + ' - por ' + p.n, p.la, p.ln);
-            document.getElementById('log').innerText = p.t + ' (' + p.n + ')';
+          if (d.payload.event === "al") {
+            mostrarTag(p.t + " - por " + p.n, p.la, p.ln);
+            document.getElementById("log").innerText = p.t + " (" + p.n + ")";
             try {
-              var f = new SpeechSynthesisUtterance('Atencao QAP! ' + p.n + ' informou: ' + p.t);
-              f.lang = 'pt-BR';
+              var f = new SpeechSynthesisUtterance("Atencao QAP! " + p.n + " informou: " + p.t);
+              f.lang = "pt-BR";
               speechSynthesis.speak(f);
             } catch(e){}
           }
         }
       };
 
-      ws.onerror = function() {
-        document.getElementById('st').innerText = 'Erro de rede';
-      };
+      ws.onerror = function() { document.getElementById("st").innerText = "Erro de rede"; };
     }
 
     function enviarWS(evento, dados) {
       if (!ws || ws.readyState !== 1) return;
-      var canal = 'realtime:qap-' + document.getElementById('reg').value;
+      var canal = "realtime:qap-" + document.getElementById("reg").value;
       ws.send(JSON.stringify({
         topic: canal,
-        event: 'broadcast',
-        payload: { type: 'broadcast', event: evento, payload: dados },
+        event: "broadcast",
+        payload: { type: "broadcast", event: evento, payload: dados },
         ref: String(ref++)
+      }));
+    }
+
+    function startRec(e) {
+      if (e) e.preventDefault();
+      if (rec && rec.state === "recording") return;
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(s) {
+        if (auto) strm = s;
+        rec = new MediaRecorder(s);
